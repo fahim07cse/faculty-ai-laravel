@@ -1,28 +1,42 @@
-# GitHub setup
+# GitHub + Render setup
 
-## First push
+## 1. Push to GitHub
 
 ```bash
 git init
 git add .
-git commit -m "Initial Laravel Faculty AI project"
+git commit -m "Prepare Faculty AI Laravel app for deployment"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/faculty-ai-laravel.git
 git push -u origin main
 ```
 
-## Important
-
-Make sure `.env` is not tracked:
+Before pushing, confirm `.env` is ignored:
 
 ```bash
 git status
 git check-ignore .env
 ```
 
-If `.env` was already staged, remove it from Git tracking:
+## 2. Deploy with Render Blueprint
+
+Open Render, choose **New → Blueprint**, connect the GitHub repository and select this repository. Render reads `render.yaml` and creates:
+
+- `faculty-ai-explorer` web service
+- `faculty-ai-db` PostgreSQL database
+
+When prompted, provide `ADMIN_USERNAME` and a strong `ADMIN_PASSWORD`.
+
+The Docker container automatically runs:
 
 ```bash
-git rm --cached .env
-git commit -m "Remove environment file"
+php artisan migrate --force
+php artisan db:seed --force
+apache2-foreground
 ```
+
+## 3. Verify
+
+- `/` — Faculty Explorer
+- `/admin` — Admin Portal
+- `/up` — Laravel health check

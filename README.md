@@ -1,81 +1,73 @@
 # Faculty AI Explorer — Laravel
 
-Laravel conversion of the Faculty AI Explorer project.
+Laravel version of the Faculty AI Explorer project.
 
-## Features
+## Included
 
-- Faculty Explorer
-- Faculty search and network graph
+- Faculty Explorer and search
+- Network graph and matching logic
 - Faculty submission/editing
-- Laravel API endpoints
 - Admin login/logout
 - Admin dashboard
-- Faculty edit
-- Soft delete and restore
+- Faculty edit, soft-delete and restore
 - Admin user management
 - Activity logging
 - CSV export
-- Excel/CSV import from the admin UI
-- MySQL-ready migrations
+- Excel/CSV import in the admin UI
+- PostgreSQL-ready migrations
+- Render Docker deployment configuration
 
 ## Requirements
 
-- PHP 8.2+
-- Composer
-- MySQL 8+ (or compatible database)
-- Node.js/npm if you want to build frontend assets
+- PHP 8.3+
+- Composer 2+
+- PostgreSQL 14+ or MySQL 8+ for local development
+- Docker Desktop if you want to test the production container locally
 
-## Installation
+## Local setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/faculty-ai-laravel.git
-cd faculty-ai-laravel
-
 composer install
-
 cp .env.example .env
 php artisan key:generate
-
 php artisan migrate
-
+php artisan db:seed
 php artisan serve
 ```
 
-Configure your database in `.env` before running migrations.
-
-## Create an admin
-
-```bash
-php artisan tinker
-```
-
-```php
-App\Models\AdminUser::create([
-    'username' => 'admin',
-    'password' => Illuminate\Support\Facades\Hash::make('Nusr@t480317'),
-    'role' => 'super_admin',
-    'is_active' => true,
-]);
-```
-
-Then open:
-
-- Faculty Explorer: http://127.0.0.1:8000/
-- Admin Portal: http://127.0.0.1:8000/admin
+Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env` before running `php artisan db:seed` if you want the initial admin created automatically.
 
 ## GitHub
 
-Do not commit `.env` or real credentials.
+Do not commit `.env`, passwords, database URLs, or API keys.
 
 ```bash
 git init
 git add .
-git commit -m "Initial Laravel Faculty AI project"
+git commit -m "Prepare Faculty AI Laravel app for deployment"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/faculty-ai-laravel.git
 git push -u origin main
 ```
 
+## Render deployment
+
+This repository includes `Dockerfile` and `render.yaml` for Render.
+
+1. Push the repository to GitHub.
+2. In Render, create a new Blueprint and select the GitHub repository.
+3. Render will create a free web service and a free PostgreSQL database from `render.yaml`.
+4. Enter values for `ADMIN_USERNAME` and `ADMIN_PASSWORD` when Render asks for the secret values.
+5. Deploy and open the generated `.onrender.com` URL.
+6. Admin portal: `/admin`.
+
+### Important free-tier limitation
+
+Render's free web service can sleep after 15 minutes without traffic, and a free Render Postgres database expires after 30 days. Free instances are intended for testing/hobby use rather than production. Upgrade the database before using this as a permanent production system.
+
 ## Security
 
-Change the example admin password before using the application in production. Never publish database credentials, API keys, or `.env` files.
+- `APP_DEBUG=false` in production.
+- Never commit `.env`.
+- Use a strong unique admin password.
+- The initial seeder never overwrites an existing admin password.

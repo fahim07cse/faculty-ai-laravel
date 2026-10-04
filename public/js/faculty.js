@@ -2,6 +2,28 @@
 
 
 
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+async function facultyApi(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      'X-CSRF-TOKEN': csrfToken(),
+      ...(options.headers || {})
+    }
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const validationMessage = Object.values(data.errors || {}).flat().join(' ');
+    throw new Error(data.message || validationMessage || 'Request failed.');
+  }
+  return data;
+}
+
 let facultyData = [];
 let network = null;
 function nextFacultyId() {
@@ -246,23 +268,16 @@ String(person.id) !== String(selected.id)
 .slice(0, 5);
 }
 async function loadData() {
-const { data, error } = await db
-.from("ai_faculty_data")
-.select("*")
-.eq("is_deleted", false)
-.order("name", { ascending: true });
-if (error) {
-console.error(error);
-document.getElementById("profile").innerHTML =
-`<div class="error">
-Database error: ${escapeHTML(error.message)}
-</div>`;
-return;
+try {
+  facultyData = await facultyApi('/api/faculty');
+  updateStatistics();
+  populateDropdown(facultyData);
+  applyConnectionView();
+} catch (error) {
+  console.error(error);
+  document.getElementById("profile").innerHTML =
+    `<div class="error">Database error: ${escapeHTML(error.message)}</div>`;
 }
-facultyData = data || [];
-updateStatistics();
-populateDropdown(facultyData);
-applyConnectionView();
 }
 function updateStatistics() {
 const themes = new Set();
@@ -1298,13 +1313,7 @@ async function findFacultyForEdit() {
   editLookupMessage.className = "form-message";
 
   try {
-    const { data, error } = await db
-      .from("ai_faculty_data")
-      .select("*")
-      .ilike("email", email)
-      .limit(1);
-
-    if (error) throw error;
+    const data = await facultyApi(`/api/faculty?email=${encodeURIComponent(email)}`);
 
     if (!data || !data.length) {
       editLookupMessage.textContent = "No faculty record was found for this email address.";
@@ -1376,17 +1385,7 @@ facultyForm.addEventListener("submit", async function(event) {
   }
 
   if (facultyFormMode === "add") {
-    const { data: existingEmailRows, error: existingEmailError } = await db
-      .from("ai_faculty_data")
-      .select("id,email")
-      .ilike("email", email);
-
-    if (existingEmailError) {
-      console.error(existingEmailError);
-      facultyFormMessage.textContent = "Could not validate the email address. Please try again.";
-      facultyFormMessage.className = "form-message error";
-      return;
-    }
+    const existingEmailRows = await facultyApi(`/api/faculty?email=${encodeURIComponent(email)}`);
 
     if (existingEmailRows && existingEmailRows.length > 0) {
       facultyFormMessage.textContent = "This University of Southampton email address has already been submitted. Please use Edit Existing Data instead.";
@@ -1434,28 +1433,23 @@ facultyForm.addEventListener("submit", async function(event) {
   facultyFormMessage.className = "form-message";
 
   try {
-    let result;
+    let saved = null;
 
     if (facultyFormMode === "edit") {
       if (editingRecordId === null || editingRecordId === undefined) {
         throw new Error("No record is selected for editing.");
       }
 
-      result = await db
-        .from("ai_faculty_data")
-        .update(payload)
-        .eq("id", editingRecordId)
-        .select();
+      saved = await facultyApi(`/api/faculty/${editingRecordId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
     } else {
-      result = await db
-        .from("ai_faculty_data")
-        .insert(payload)
-        .select();
+      saved = await facultyApi('/api/faculty', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
     }
-
-    if (result.error) throw result.error;
-
-    const saved = Array.isArray(result.data) && result.data.length ? result.data[0] : null;
 
     facultyFormMessage.textContent = facultyFormMode === "edit"
       ? "Changes saved successfully."
