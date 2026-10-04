@@ -1,10 +1,11 @@
-FROM php:8.4-apache
+FROM php:8.3-apache
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip libpq-dev libzip-dev libicu-dev libcurl4-openssl-dev libxml2-dev \
-    && docker-php-ext-install pdo_pgsql mbstring bcmath intl zip curl xml opcache \
+    && apt-get install -y --no-install-recommends \
+        git unzip libpq-dev libzip-dev libicu-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install -j"$(nproc)" pdo_pgsql mbstring bcmath intl zip xml opcache \
     && a2enmod rewrite headers \
     && sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf \
     && rm -rf /var/lib/apt/lists/*
@@ -17,7 +18,7 @@ COPY . .
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/private storage/app/public bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
-    && (php artisan storage:link || true)
+    && php artisan storage:link || true
 
 RUN printf '%s\n' \
     '<Directory /var/www/html/public>' \
@@ -28,4 +29,4 @@ RUN printf '%s\n' \
 
 EXPOSE 80
 
-CMD ["sh", "-c", "case \"$APP_KEY\" in base64:*) ;; *) export APP_KEY=base64:$APP_KEY ;; esac; php artisan migrate --force && php artisan db:seed --force && apache2-foreground"]
+CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force && apache2-foreground"]
